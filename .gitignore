@@ -1,0 +1,6 @@
+coppeliasim/
+__pycache__/
+env/
+slam/
+src/
+start.py
