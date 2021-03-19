@@ -8,6 +8,7 @@ from src.disp   import Display
 import settings
 import time, argparse
 import matplotlib.pyplot as plt
+import bot
 
 """ Motors:
 
@@ -53,7 +54,6 @@ import matplotlib.pyplot as plt
 ###########
 ###########
 
-import loop from bot;
 # def loop(agent):
 
     # """
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # Initialize and start the environment
     environment = VrepEnvironment(settings.SCENES + '/room_static.ttt')  # Open the file containing our scene (robot and its environment)
     environment.connect()        # Connect python to the simulator's remote API
-    agent   = Pioneer(environment)
+    agent = Pioneer(environment)
     display = Display(agent, False)
 
     print('\nDemonstration of Simultaneous Localization and Mapping using CoppeliaSim robot simulation software. \nPress "CTRL+C" to exit.\n')
@@ -80,11 +80,12 @@ if __name__ == "__main__":
     done  = False
     environment.start_simulation()
     time.sleep(1)
+    state = bot.State()
 
     try:
         while step < settings.simulation_steps and not done:
             display.update()                      # Update the SLAM display
-            loop(agent)                           # Control loop
+            bot.loop(agent, state)                           # Control loop
             step += 1
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()-start))
