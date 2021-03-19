@@ -3,28 +3,64 @@ import numpy as np
 from dataclasses import dataclass
 from wall_model import WallModel
 from ransac import ransac
-
+from skimage.transform import probabilistic_hough_line
 
 MIN_LINE_SAMPLES = 10
 
 
+# @dataclass
+# class Line:
+#     model: WallModel
+#     start: Tuple[float, float]
+#     end: Tuple[float, float]
+#     inliers: np.ndarray  # for test only
+
+
+# def find_lines(x: np.ndarray, y: np.ndarray) -> List[Line]:
+#     lines = []
+#     data = np.column_stack([x, y])
+#     while len(data) > MIN_LINE_SAMPLES:
+#         res = extract_ransac_line(data, MIN_LINE_SAMPLES)
+#         if res is None:
+#             break
+#         line, data = res
+#         lines.append(line)
+#     return lines
+
+
 @dataclass
 class Line:
-    model: WallModel
     start: Tuple[float, float]
-    end: Tuple[float, float]
-    inliers: np.ndarray  # for test only
+    stop: Tuple[float, float]
 
 
 def find_lines(x: np.ndarray, y: np.ndarray) -> List[Line]:
     lines = []
-    data = np.column_stack([x, y])
-    while len(data) > MIN_LINE_SAMPLES:
-        res = extract_ransac_line(data, MIN_LINE_SAMPLES)
-        if res is None:
-            break
-        line, data = res
-        lines.append(line)
+    def width(a): return np.abs(np.amax(a) - np.amin(a))
+    def center(a): return np.amin(a) + width(a)/2
+    max_width = max(width(x), width(y))
+
+    # center x and y into a max_width by max_width grid
+    x = x+(max_width/2 - center(x))
+    y = y+(max_width/2 - center(y))
+
+    # scale x and y to integer grid
+    x = (x * 999/max_width).astype(int)
+    y = (y * 999/max_width).astype(int)
+
+    print(np.amax(x))
+    grid = np.zeros((1000, 1000))
+    grid[y, x] = 1
+
+    lines = probabilistic_hough_line(grid, line_gap=30, threshold=1, line_length=40)
+    print(lines)
+
+    plt.imshow(grid)
+    for p0, p1 in lines:
+        plt.plot((p0[0], p1[0]), (p0[1], p1[1]))
+
+    plt.show()
+
     return lines
 
 
