@@ -1,15 +1,8 @@
 from matplotlib import pyplot as plt
-from dataclasses import dataclass
 
 import numpy as np
 from scipy import signal
-from typing import Tuple, List
-
-ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
-
-
-def find_doors(data: Tuple[np.ndarray, np.ndarray], ranges: np.ndarray):
-    far = far_doors(*data, ranges)
+from typing import List
 
 
 class Bin:
@@ -56,7 +49,7 @@ class Clusters:
         return [bin for bin in self.bins if len(bin) > 6]
 
 
-def far_doors(x: np.ndarray, y: np.ndarray, ranges: np.ndarray) -> List[Bin]:
+def find(x: np.ndarray, y: np.ndarray, ranges: np.ndarray) -> List[Bin]:
 
     clusters = Clusters()
     median = signal.medfilt(ranges, 31)

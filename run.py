@@ -67,12 +67,12 @@ import bot
 ##########
 
 if __name__ == "__main__":
-    plt.ion()
+    # plt.ion()
     # Initialize and start the environment
     environment = VrepEnvironment(settings.SCENES + '/room_static.ttt')  # Open the file containing our scene (robot and its environment)
     environment.connect()        # Connect python to the simulator's remote API
     agent = Pioneer(environment)
-    display = Display(agent, False)
+    # display = Display(agent, False)
 
     print('\nDemonstration of Simultaneous Localization and Mapping using CoppeliaSim robot simulation software. \nPress "CTRL+C" to exit.\n')
     start = time.time()
@@ -84,12 +84,12 @@ if __name__ == "__main__":
 
     try:
         while step < settings.simulation_steps and not done:
-            display.update()                      # Update the SLAM display
+            # display.update()                      # Update the SLAM display
             bot.loop(agent, state)                           # Control loop
             step += 1
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()-start))
 
-    display.close()
+    # display.close()
     environment.stop_simulation()
     environment.disconnect()

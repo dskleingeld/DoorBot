@@ -39,6 +39,8 @@ def find_lines(x: np.ndarray, y: np.ndarray) -> List[Line]:
     def width(a): return np.abs(np.amax(a) - np.amin(a))
     def center(a): return np.amin(a) + width(a)/2
     max_width = max(width(x), width(y))
+    xcent = center(x)
+    ycent = center(y)
 
     # center x and y into a max_width by max_width grid
     x = x+(max_width/2 - center(x))
@@ -48,18 +50,18 @@ def find_lines(x: np.ndarray, y: np.ndarray) -> List[Line]:
     x = (x * 999/max_width).astype(int)
     y = (y * 999/max_width).astype(int)
 
-    print(np.amax(x))
     grid = np.zeros((1000, 1000))
     grid[y, x] = 1
 
-    lines = probabilistic_hough_line(grid, line_gap=30, threshold=1, line_length=40)
-    print(lines)
+    lines = probabilistic_hough_line(
+        grid, line_gap=30, threshold=1, line_length=40)
 
-    plt.imshow(grid)
-    for p0, p1 in lines:
-        plt.plot((p0[0], p1[0]), (p0[1], p1[1]))
+    def rescale(p, cent): return p/(999/max_width) - (max_width/2 - cent)
 
-    plt.show()
+    def rescale_line(p0, p1): return (
+        (rescale(p0[0], xcent), rescale(p0[1], ycent)),
+        (rescale(p1[0], xcent), rescale(p1[1], ycent)))
+    lines = [rescale_line(*line) for line in lines]
 
     return lines
 

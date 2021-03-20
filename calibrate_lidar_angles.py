@@ -6,9 +6,11 @@ from matplotlib import pyplot as plt
 # y = np.loadtxt("y.txt")
 
 ranges = np.loadtxt("ranges.txt")
-angles = np.linspace(-.75*np.pi, .75*np.pi, num=270)
+# angles = np.linspace(-.75*np.pi, .75*np.pi, num=270)
 
-angles = np.arange(0,270)
+angles = np.arange(0, 270)
+
+
 
 sin = np.sin(angles)
 cos = np.cos(angles)
