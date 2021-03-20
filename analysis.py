@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from scipy import signal
 from typing import Tuple, List
@@ -11,7 +12,7 @@ Point = namedtuple('Point', 'x y')
 @dataclass
 class Door:
     score: float
-    angle: float
+    angle: float  # in degrees
     coord: Point
     distance: float
 
@@ -20,6 +21,7 @@ def from_far(door: far_doors.Bin) -> Door:
     score = 5.0
     score -= door.range()
     angle = np.arctan(door.center()[1]/door.range())
+    angle = 180/math.pi * angle
     distance = door.range()
     coord = Point(door.center()[0], door.center()[1])
 

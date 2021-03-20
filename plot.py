@@ -2,9 +2,24 @@ from matplotlib import pyplot as plt
 from collections import deque
 import numpy as np
 from typing import List
+import sys
 
 from analysis import Door
 from actions import Action
+
+
+def report_status(doors: List[Door]):
+    # sys.stdout.write('\r')
+    # sys.stdout.flush()
+    if len(doors) > 0:
+        b = doors[0]
+        # sys.stdout.write(
+        print(
+            f"doors: #{len(doors)}, best at [{b.coord.x:.2},{b.coord.y:.2}] "
+            f"{b.angle:4.1f}° score: {b.score:.2}", end="\r")
+    else:
+        print("no doors found", end="\r")
+        # sys.stdout.write("no doors found")
 
 
 class Plot:
@@ -15,8 +30,10 @@ class Plot:
             nrows=2, gridspec_kw={'height_ratios': [2, 1]})
         self.lidar, = ax.plot([], [], linestyle='None',
                               marker="o", color="blue", alpha=0.2)
-        self.doors, = ax.plot([], [], linestyle='None',
-                              marker="o", color="green", markersize=10)
+        self.chosen_door, = ax.plot([], [], linestyle='None',
+                                    marker="o", color="green", markersize=10)
+        self.doors, = ax.plot([], [], linestyle='None', marker="x",
+                              color="green", markersize=10)
         self.controls, = ax2.plot([])
         self.control_data = deque(maxlen=500)
         self.fig, self.ax, self.ax2 = fig, ax, ax2
@@ -36,6 +53,7 @@ class Plot:
         # self.fig.canvas.restore_region(self.bg)
         self.ax.draw_artist(self.lidar)
         self.ax.draw_artist(self.doors)
+        self.ax.draw_artist(self.chosen_door)
         self.ax.draw_artist(self.controls)
         # self.fig.canvas.blit(self.ax.bbox)
         # self.fig.canvas.flush_events()
@@ -51,4 +69,5 @@ class Plot:
         x = list(map(lambda d: d.coord.x, doors))
         y = list(map(lambda d: d.coord.y, doors))
         self.doors.set_data(x, y)
+        self.chosen_door.set_data((x[:1],), (y[:1],))
         self.redraw()

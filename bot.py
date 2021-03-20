@@ -5,7 +5,7 @@ from loguru import logger
 import numpy as np
 from analysis import find_doors
 # import remote
-from plot import Plot
+from plot import Plot, report_status
 from actions import Action, rot_away, rot_towards
 
 
@@ -36,7 +36,7 @@ class State:
 def track_door(target) -> Action:
     if abs(target.angle) < 5.0 and target.coord.y < 0.3:
         return Action.Forward
-    elif target.coord.x < 0.3:
+    elif target.coord.y < 1.5:
         return rot_towards(target.angle)
     elif 60 > abs(target.angle) < 90:
         return Action.Forward
@@ -62,5 +62,7 @@ def loop(agent: Pioneer, state: State):
     else:
         action = Action.Forward
 
+
     state.plot.update(doors, *data, action)
+    report_status(doors)
     action.perform(agent)
