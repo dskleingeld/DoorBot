@@ -1,8 +1,27 @@
 from matplotlib import pyplot as plt
 
+import math
 import numpy as np
 from scipy import signal
-from typing import List
+from functools import partial
+from typing import List, Optional
+from doors import Door, Point
+
+
+PLOT = True
+
+if PLOT:
+    fig, ax = plt.subplots()
+    ax.set_xlim(-8, 8)
+    ax.set_ylim(-2, 8)
+    ax.plot((0,), (0,), marker="o", linestyle='None', color="red")
+    line_lidar, = ax.plot([], [], marker="o", linestyle='None',
+                          color="blue", alpha=0.2)
+    line_median, = ax.plot([], [], marker="o", linestyle='None',
+                           color="yellow", alpha=0.2)
+    line_doors, = ax.plot([], [], marker="o", linestyle='None', color="green")
+    fig.canvas.draw()
+    plt.show(block=False)
 
 
 class Bin:
@@ -32,6 +51,8 @@ class Bin:
         return len(self.indices)
 
     def __contains__(self, coord: np.ndarray) -> bool:
+        # FIXME clustering distance should dep on range or
+        # if points are on a line
         return np.linalg.norm(coord - self.center()) < 2
 
 
@@ -45,11 +66,36 @@ class Clusters:
                 return bin.add(i, coord, range)
         return self.bins.append(Bin(i, coord, range))
 
-    def openings(self):
+    def to_openings(self):
         return [bin for bin in self.bins if len(bin) > 6]
 
 
-def find(x: np.ndarray, y: np.ndarray, ranges: np.ndarray) -> List[Bin]:
+def build_door(x: np.ndarray, y: np.ndarray,
+               ranges: np.ndarray, bin: Bin) -> Optional[Door]:
+
+    def find_door_post(bin: Bin, hay) -> Optional[int]:
+        i = min(bin.indices) - 1
+        for i in hay:
+            if bin.range() - ranges[i] > 1.5:
+                return i
+        return None
+
+    left = find_door_post(bin, range(min(bin.indices), 0, -1))
+    right = find_door_post(bin, range(max(bin.indices), len(ranges)))
+
+    if left is None or right is None:
+        return None
+
+    left = Point(x[left], y[left])
+    right = Point(x[right], y[right])
+
+    score = 5.0
+    score -= bin.range()
+    return Door(score, left, right)
+
+
+def find(x: np.ndarray, y: np.ndarray,
+         ranges: np.ndarray) -> List[Door]:
 
     clusters = Clusters()
     median = signal.medfilt(ranges, 31)
@@ -58,45 +104,43 @@ def find(x: np.ndarray, y: np.ndarray, ranges: np.ndarray) -> List[Bin]:
             coord = np.array([x[i], y[i]])
             clusters.update(i, coord, ranges[i])
 
-    options = clusters.openings()
-    doors = [o for o in options if o.range() > median[o.idx()] + 0.5]
+    openings = clusters.to_openings()
+    openings = [o for o in openings if o.range() > median[o.idx()] + 0.5]
+    to_door = partial(build_door, x, y, ranges)
+    doors = list(map(to_door, openings))
+
+    print(doors)
+    update_plot(x, y, median, doors)
 
     return doors
 
-    # fig, ax = plt.subplots()
-    # ax.scatter(x, y, color="blue", alpha=0.2)
-    # ax.scatter((0,), (0,), color="red")
 
-    # ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
-    # SIN = np.sin(ANGLES)
-    # COS = np.cos(ANGLES)
-    # x = -1*SIN*median
-    # y = COS*median
-    # ax.scatter(x, y, color="yellow", alpha=0.2)
+def update_plot(x, y, median, doors):
+    if PLOT:
+        line_lidar.set_data(x, y)
+        ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
+        SIN = np.sin(ANGLES)
+        COS = np.cos(ANGLES)
+        x = -1*SIN*median
+        y = COS*median
+        line_median.set_data(x, y)
 
-    # plt.xlim(-10, 10)
-    # plt.ylim(-10, 10)
+        plt.xlim(-10, 10)
+        plt.ylim(-10, 10)
 
-    # for door in doors:
-    #     center = door.center()
-    #     x, y = center[0], center[1]
-    #     ax.scatter(x, y, color="green")
-
-    # plt.show()
-
-
-def plot(x, y):
-    fig, ax = plt.subplots()
-    ax.scatter(x, y, color="blue", alpha=0.5)
-    plt.xlim(-10, 10)
-    plt.ylim(-10, 10)
-    plt.show()
+        x = [door.center()[0] for door in doors]
+        y = [door.center()[1] for door in doors]
+        line_doors.set_data(x, y)
+        ax.draw_artist(line_lidar)
+        ax.draw_artist(line_median)
+        ax.draw_artist(line_doors)
+        plt.pause(0.001)
 
 
 if __name__ == "__main__":
     ranges = np.loadtxt("ranges.txt")
     data = np.loadtxt("data.txt")
-    x, y = -1*data[0], data[1]
-    # plot(x, y)
+    x, y = data[0], data[1]
 
-    find_doors(data, ranges)
+    find(x, y, ranges)
+    input("test")

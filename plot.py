@@ -15,8 +15,9 @@ def report_status(doors: List[Door]):
         b = doors[0]
         # sys.stdout.write(
         print(
-            f"doors: #{len(doors)}, best at [{b.coord.x:.2},{b.coord.y:.2}] "
-            f"{b.angle:4.1f}° score: {b.score:.2}", end="\r")
+            f"doors: #{len(doors)}, best at [{b.center().x:.2},"
+            f"{b.center().y:.2}] {b.angle():4.1f}° "
+            f"score: {b.score:.2}", end="\r")
     else:
         print("no doors found", end="\r")
         # sys.stdout.write("no doors found")
@@ -66,8 +67,8 @@ class Plot:
         x = range(len(self.control_data))
         y = list(self.control_data)
         self.controls.set_data(x, y)
-        x = list(map(lambda d: d.coord.x, doors))
-        y = list(map(lambda d: d.coord.y, doors))
+        x = list(map(lambda d: d.center().x, doors))
+        y = list(map(lambda d: d.center().y, doors))
         self.doors.set_data(x, y)
         self.chosen_door.set_data((x[:1],), (y[:1],))
         self.redraw()

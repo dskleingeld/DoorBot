@@ -2,36 +2,20 @@ import math
 import numpy as np
 from scipy import signal
 from typing import Tuple, List
-from dataclasses import dataclass
-from collections import namedtuple
 
-import far_doors
-Point = namedtuple('Point', 'x y')
-
-
-@dataclass
-class Door:
-    score: float
-    angle: float  # in degrees
-    coord: Point
-    distance: float
-
-
-def from_far(door: far_doors.Bin) -> Door:
-    score = 5.0
-    score -= door.range()
-    angle = np.arctan(door.center()[1]/door.range())
-    angle = 180/math.pi * angle
-    distance = door.range()
-    coord = Point(door.center()[0], door.center()[1])
-
-    return Door(score, angle, coord, distance)
+import far_doors as far
+from doors import Door
 
 
 def find_doors(data: Tuple[np.ndarray, np.ndarray],
                ranges: np.ndarray) -> List[Door]:
-    far = far_doors.find(*data, ranges)
-    doors = list(map(from_far, far))
+    doors = far.find(*data, ranges)
 
     doors.sort(key=lambda k: k.score)
     return doors
+
+
+def passing_door(data: Tuple[np.ndarray, np.ndarray],
+                 ranges: np.ndarray) -> bool:
+
+    return True
