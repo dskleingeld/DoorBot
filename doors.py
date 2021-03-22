@@ -24,7 +24,7 @@ class Point:
 
 @ dataclass
 class Door:
-    score: float
+    base_score: float
     left: Point
     right: Point
 
@@ -54,3 +54,6 @@ class Door:
         pos = self.center().np() + v2 * 1
         pos = Point(pos[0], pos[1])
         return pos
+
+    def score(self) -> float:
+        return self.base_score - self.distance()

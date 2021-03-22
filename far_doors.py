@@ -90,9 +90,7 @@ def build_door(x: np.ndarray, y: np.ndarray,
     left = Point(x[left], y[left])
     right = Point(x[right], y[right])
 
-    score = 5.0
-    score -= bin.range()
-    return Door(score, left, right)
+    return Door(5, left, right)
 
 
 def find(x: np.ndarray, y: np.ndarray,

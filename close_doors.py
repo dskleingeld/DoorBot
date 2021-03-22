@@ -57,7 +57,7 @@ class Gap:
         start = closest_on_door(model, point(self.start))
         end = closest_on_door(model, point(self.stop))
 
-        return Door(5, start, end)
+        return Door(10, start, end)
 
 
 def closest_on_door(model: LineModelND, point: Point) -> Point:
