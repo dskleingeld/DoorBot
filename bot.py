@@ -1,3 +1,4 @@
+import sys
 from src.agents import Pioneer
 from typing import List, Tuple
 from loguru import logger
@@ -31,7 +32,7 @@ class BotState(enum.Enum):
 
 
 class State:
-    current: BotState = BotState.Started
+    current: BotState = BotState.NoDoor
     plot: Plot = Plot()
     # control = remote.Control()
 
@@ -56,6 +57,10 @@ def track_door(target) -> Action:
 def handle_tracking(state: State, data, ranges) -> Action:
     doors = find_doors(data, ranges)
     if len(doors) == 0:
+        logger.critical("lost door, dumping data")
+        np.savetxt("data.txt", data)
+        np.savetxt("ranges.txt", ranges)
+        sys.exit()
         state.current = BotState.NoDoor
         return Action.Forward
     door = doors[0]
@@ -70,18 +75,21 @@ def handle_tracking(state: State, data, ranges) -> Action:
         return rot_towards(door.waypoint().angle())
 
 
-def decide(state: State, data, ranges) -> Action:
+def brain(state: State, data, ranges) -> Action:
     if state.current == BotState.NoDoor:
         doors = find_doors(data, ranges)
         if len(doors) > 0:
+            logger.info("tracking door")
             state.current = BotState.TrackingDoor
     elif state.current == BotState.TrackingDoor:
         return handle_tracking(state, data, ranges)
     elif state.current == BotState.AlignedOnDoor:
         if passing_door(data, ranges):
+            logger.info("passing door")
             state.current = BotState.PassingDoor
     elif state.current == BotState.PassingDoor:
         if not passing_door(data, ranges):
+            logger.info("passed door")
             state.current = BotState.NoDoor
     else:
         logger.warning(f"INVALID STATE: {state.current}")
@@ -92,7 +100,7 @@ def loop(agent: Pioneer, state: State):
     ranges = agent.read_lidars()
     data = convert(ranges)
 
-    action = decide(state, data, ranges)
+    action = brain(state, data, ranges)
 
     doors = find_doors(data, ranges)
     state.plot.update(doors, *data, action)

@@ -15,6 +15,12 @@ class Point:
         radians = np.arctan(self.y/self.distance())
         return 180/math.pi * radians
 
+    def __sub__(self, other) -> np.ndarray:
+        return np.array([self.x-other.x, self.y-other.y])
+
+    def np(self) -> np.ndarray:
+        return np.array([self.x, self.y])
+
 
 @ dataclass
 class Door:
@@ -39,4 +45,12 @@ class Door:
         return alpha
 
     def waypoint(self) -> Point:
-        return Point(0, 0)
+        # orthogonalize center to origin
+        # with left-right as first base vector
+        v1 = self.left.np() - self.right.np()
+        a2 = np.zeros((2)) - self.center().np()
+        v2 = a2 - (a2@v1)/(v1@v1) * v1  # gram smith
+
+        pos = self.center().np() + v2 * 1
+        pos = Point(pos[0], pos[1])
+        return pos

@@ -7,7 +7,6 @@ from functools import partial
 from typing import List, Optional
 from doors import Door, Point
 
-
 PLOT = True
 
 if PLOT:
@@ -20,6 +19,8 @@ if PLOT:
     line_median, = ax.plot([], [], marker="o", linestyle='None',
                            color="yellow", alpha=0.2)
     line_doors, = ax.plot([], [], marker="o", linestyle='None', color="green")
+    line_waypoints, = ax.plot(
+        [], [], marker="o", linestyle='None', color="purple")
     fig.canvas.draw()
     plt.show(block=False)
 
@@ -53,7 +54,7 @@ class Bin:
     def __contains__(self, coord: np.ndarray) -> bool:
         # FIXME clustering distance should dep on range or
         # if points are on a line
-        return np.linalg.norm(coord - self.center()) < 2
+        return np.linalg.norm(coord - self.center()) < 4
 
 
 class Clusters:
@@ -105,11 +106,10 @@ def find(x: np.ndarray, y: np.ndarray,
             clusters.update(i, coord, ranges[i])
 
     openings = clusters.to_openings()
-    openings = [o for o in openings if o.range() > median[o.idx()] + 0.5]
+    openings = [o for o in openings if o.range() > median[o.idx()] + 1.5]
     to_door = partial(build_door, x, y, ranges)
-    doors = list(map(to_door, openings))
+    doors = list(filter(lambda o: o is not None, map(to_door, openings)))
 
-    print(doors)
     update_plot(x, y, median, doors)
 
     return doors
@@ -128,12 +128,17 @@ def update_plot(x, y, median, doors):
         plt.xlim(-10, 10)
         plt.ylim(-10, 10)
 
-        x = [door.center()[0] for door in doors]
-        y = [door.center()[1] for door in doors]
-        line_doors.set_data(x, y)
+        if len(doors) > 0:
+            x = [door.center().x for door in doors]
+            y = [door.center().y for door in doors]
+            line_doors.set_data(x, y)
+            x = [door.waypoint().x for door in doors]
+            y = [door.waypoint().y for door in doors]
+            line_waypoints.set_data(x, y)
+            ax.draw_artist(line_doors)
+            ax.draw_artist(line_waypoints)
         ax.draw_artist(line_lidar)
         ax.draw_artist(line_median)
-        ax.draw_artist(line_doors)
         plt.pause(0.001)
 
 
@@ -141,6 +146,7 @@ if __name__ == "__main__":
     ranges = np.loadtxt("ranges.txt")
     data = np.loadtxt("data.txt")
     x, y = data[0], data[1]
+    print(data)
 
     find(x, y, ranges)
     input("test")

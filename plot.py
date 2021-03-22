@@ -16,7 +16,7 @@ def report_status(doors: List[Door]):
         # sys.stdout.write(
         print(
             f"doors: #{len(doors)}, best at [{b.center().x:.2},"
-            f"{b.center().y:.2}] {b.angle():4.1f}° "
+            f"{b.center().y:.2}] {b.center().angle():4.1f}° "
             f"score: {b.score:.2}", end="\r")
     else:
         print("no doors found", end="\r")
@@ -35,6 +35,8 @@ class Plot:
                                     marker="o", color="green", markersize=10)
         self.doors, = ax.plot([], [], linestyle='None', marker="x",
                               color="green", markersize=10)
+        self.door_wp, = ax.plot([], [], linestyle='None', marker="o",
+                                color="purple", markersize=10)
         self.controls, = ax2.plot([])
         self.control_data = deque(maxlen=500)
         self.fig, self.ax, self.ax2 = fig, ax, ax2
@@ -55,6 +57,7 @@ class Plot:
         self.ax.draw_artist(self.lidar)
         self.ax.draw_artist(self.doors)
         self.ax.draw_artist(self.chosen_door)
+        self.ax.draw_artist(self.door_wp)
         self.ax.draw_artist(self.controls)
         # self.fig.canvas.blit(self.ax.bbox)
         # self.fig.canvas.flush_events()
@@ -71,4 +74,7 @@ class Plot:
         y = list(map(lambda d: d.center().y, doors))
         self.doors.set_data(x, y)
         self.chosen_door.set_data((x[:1],), (y[:1],))
+        x = list(map(lambda d: d.waypoint().x, doors))
+        y = list(map(lambda d: d.waypoint().y, doors))
+        self.door_wp.set_data((x[:1],), (y[:1],))
         self.redraw()
