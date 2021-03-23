@@ -5,7 +5,7 @@ from loguru import logger
 import enum
 import numpy as np
 from analysis import find_doors, passing_door
-# import remote
+import remote
 from plot import Plot, report_status
 from actions import Action, rot_away, rot_towards
 
@@ -34,24 +34,7 @@ class BotState(enum.Enum):
 class State:
     current: BotState = BotState.NoDoor
     plot: Plot = Plot()
-    # control = remote.Control()
-
-
-def track_door(target) -> Action:
-    angle = target.angle()
-    coord = target.center()
-
-    if abs(angle) < 5.0 and coord.y < 0.3:
-        return Action.Forward
-    elif coord.y < 1.5:
-        return rot_towards(angle)
-    elif 60 > abs(angle) < 90:
-        return Action.Forward
-    elif abs(angle) < 45:
-        return rot_away(angle)
-    else:
-        logger.warning("no direction to go")
-        return Action.Stay
+    control = remote.Control()
 
 
 def handle_tracking(state: State, data, ranges) -> Action:
@@ -63,15 +46,21 @@ def handle_tracking(state: State, data, ranges) -> Action:
         sys.exit()
         state.current = BotState.NoDoor
         return Action.Forward
+
     door = doors[0]
-    if door.angle_on() < 3:
-        if door.center().angle() < 3:
+    if abs(door.angle_on()) < 2:
+        logger.debug(f"angle on door: {door.angle_on()}")
+        if abs(door.center().angle()) < 3:
+            logger.debug(f"driving towards door {door.center().angle()}")
             return Action.Forward
         else:
+            logger.debug(f"turning towards door {door.center().angle()}")
             return rot_towards(door.center().angle())
-    elif door.waypoint().angle() < 3:
+    elif abs(door.waypoint().angle()) < 6:
+        logger.debug(f"driving towards waypoint {door.waypoint().angle()}")
         return Action.Forward
     else:
+        logger.debug(f"turning towards waypoint {door.waypoint().angle()}")
         return rot_towards(door.waypoint().angle())
 
 
@@ -98,7 +87,13 @@ def brain(state: State, data, ranges) -> Action:
 
 def loop(agent: Pioneer, state: State):
     ranges = agent.read_lidars()
+    ranges = np.array(ranges)
     data = convert(ranges)
+
+    c = state.control.apply(agent)
+    if c == "p":
+        np.savetxt("data.txt", data)
+        np.savetxt("ranges.txt", ranges)
 
     action = brain(state, data, ranges)
 

@@ -17,7 +17,7 @@ def report_status(doors: List[Door]):
         print(
             f"doors: #{len(doors)}, best at [{b.center().x:.2},"
             f"{b.center().y:.2}] {b.center().angle():4.1f}° "
-            f"score: {b.score:.2}", end="\r")
+            f"score: {b.score():.2}", end="\r")
     else:
         print("no doors found", end="\r")
         # sys.stdout.write("no doors found")

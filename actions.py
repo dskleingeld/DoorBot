@@ -16,9 +16,9 @@ class Action(Enum):
         if self == self.Forward:
             agent.change_velocity([0.15, 0.15])
         elif self == self.Left:
-            agent.change_velocity([0.1, -0.1])
+            agent.change_velocity([0.05, -0.05])
         elif self == self.Right:
-            agent.change_velocity([-0.1, 0.1])
+            agent.change_velocity([-0.05, 0.05])
         else:
             logger.error(f"unknown action {self}")
 

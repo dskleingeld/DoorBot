@@ -12,7 +12,7 @@ class Point:
         return np.linalg.norm([self.x, self.y])
 
     def angle(self) -> float:
-        radians = np.arctan(self.y/self.distance())
+        radians = np.arctan(self.x/self.y)
         return 180/math.pi * radians
 
     def __sub__(self, other) -> np.ndarray:
@@ -34,7 +34,7 @@ class Door:
         return Point(self.left.x-xlen/2, self.left.y-ylen/2)
 
     def distance(self) -> float:
-        return np.linalg.norm(self.center())
+        return np.linalg.norm(self.center().np())
 
     def angle_on(self) -> float:  # in degrees
         d = (self.right.x - self.left.x)/2

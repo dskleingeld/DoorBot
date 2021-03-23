@@ -7,7 +7,7 @@ from functools import partial
 from typing import List, Optional
 from doors import Door, Point
 
-PLOT = True
+PLOT = False
 
 if PLOT:
     fig, ax = plt.subplots()
