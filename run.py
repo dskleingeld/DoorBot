@@ -2,12 +2,10 @@
 """
 
 from __future__ import print_function
-from src.env    import VrepEnvironment
+from src.env import VrepEnvironment
 from src.agents import Pioneer
-from src.disp   import Display
 import settings
-import time, argparse
-import matplotlib.pyplot as plt
+import time
 import bot
 
 """ Motors:
@@ -29,15 +27,16 @@ import bot
     Lidar:
           3. agent.read_lidar()
           ----
-               Returns a list of floating point numbers that you can
-               indicate the distance towards the closest object at a particular angle.
+               Returns a list of floating point numbers that you can indicate
+               the distance towards the closest object at a particular angle.
 
                Basic configuration of the lidar:
                Angle: [-135:135] Starting with the
                leftmost lidar point -> clockwise
 
     Agent:
-          You can access these attributes to get information about the agent's positions
+          You can access these attributes to get information about the agent's
+          positions
 
           4. agent.pos
 
@@ -51,33 +50,18 @@ import bot
                (200 by default, can be changed in settings.py)
 """
 
-###########
-###########
-
-# def loop(agent):
-
-    # """
-    # Robot control loop
-    # Your code goes here
-    # """
-    # # Example: 
-    # agent.change_velocity([2, 2])
-
-##########
-##########
-
 if __name__ == "__main__":
-    # plt.ion()
     # Initialize and start the environment
-    environment = VrepEnvironment(settings.SCENES + '/room_static.ttt')  # Open the file containing our scene (robot and its environment)
+    # Open the file containing our scene (robot and its environment)
+    environment = VrepEnvironment(settings.SCENES + '/room_static.ttt')
     environment.connect()        # Connect python to the simulator's remote API
     agent = Pioneer(environment)
-    # display = Display(agent, False)
 
-    print('\nDemonstration of Simultaneous Localization and Mapping using CoppeliaSim robot simulation software. \nPress "CTRL+C" to exit.\n')
+    print('\nDemonstration of Simultaneous Localization and Mapping using '
+          'CoppeliaSim robot simulation software. \nPress "CTRL+C" to exit.\n')
     start = time.time()
-    step  = 0
-    done  = False
+    step = 0
+    done = False
     environment.start_simulation()
     time.sleep(1)
     state = bot.State()

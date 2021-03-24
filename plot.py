@@ -27,8 +27,9 @@ class Plot:
     # from: https://stackoverflow.com/questions/
     # 40126176/fast-live-plotting-in-matplotlib-pyplot
     def __init__(self):
-        fig, (ax, ax2) = plt.subplots(
-            nrows=2, gridspec_kw={'height_ratios': [2, 1]})
+        fig, (ax, ax2) = plt.subplots(figsize=(15, 15),
+                                      nrows=2,
+                                      gridspec_kw={'height_ratios': [2, 1]})
         self.lidar, = ax.plot([], [], linestyle='None',
                               marker="o", color="blue", alpha=0.2)
         self.chosen_door, = ax.plot([], [], linestyle='None',

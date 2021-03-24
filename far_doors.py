@@ -116,7 +116,8 @@ def find(x: np.ndarray, y: np.ndarray,
 def update_plot(x, y, median, doors):
     if PLOT:
         line_lidar.set_data(x, y)
-        ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
+        ANGLES = np.loadtxt("angles.txt") / 180*np.pi
+        # ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
         SIN = np.sin(ANGLES)
         COS = np.cos(ANGLES)
         x = -1*SIN*median

@@ -5,6 +5,7 @@ from typing import List, Optional
 from scipy import signal
 from skimage.measure import LineModelND, ransac
 from matplotlib import pyplot as plt
+import math
 
 
 PLOT = False
@@ -12,7 +13,7 @@ if __name__ == "__main__":
     PLOT = True
 
 if PLOT:
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(15, 15))
     ax.set_xlim(-8, 8)
     ax.set_ylim(-2, 8)
     # ax.plot((0,), (0,), marker="o", linestyle='None', color="red")
@@ -27,72 +28,90 @@ if PLOT:
     plt.show(block=False)
 
 
+class LineParams:
+    # ax + by + c = 0
+    def __init__(self, model: LineModelND):
+        (origin, direction) = model.params
+        normal = (direction[1], -direction[0])
+        self.a = normal[0]
+        self.b = normal[1]
+        self.c = -1*(self.a*origin[0] + self.b*origin[1])
+
+    def distance_to(self, point: Point) -> float:
+        # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_an_equation
+        a, b, c = self.a, self.b, self.c
+        distance = abs(a*point.x+b*point.y+c)/(math.sqrt(a*a+b*b))
+        return distance
+
+    def closest_on(self, point: Point) -> Point:
+        # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_an_equation
+        a, b, c = self.a, self.b, self.c
+        x = (b*(b*point.x-a*point.y) - a*c)/(a*a+b*b)
+        y = (a*(-b*point.x+a*point.y) - b*c)/(a*a+b*b)
+        return Point(x, y)
+
+
 @dataclass
 class Gap:
     start: int
     stop: int
-
-    def width_ok(self, x: np.ndarray, y: np.ndarray) -> bool:
-        start = np.array([x[self.start], y[self.start]])
-        stop = np.array([x[self.stop], y[self.stop]])
-        width = np.linalg.norm(start-stop)
-        print(width)
-        return 0.5 < width < 2.2
+    N = 10
+    D = 2
 
     def fit(self, x: np.ndarray, y: np.ndarray) -> LineModelND:
         # fit the data some points away from the door
-        N = 10 # number of samples on both sides
-        D = 2 # distance from doorpost to start sampling
+        N = self.N  # number of samples on both sides
+        D = self.D  # distance from doorpost to start sampling
         data = np.zeros((2*N, 2))
 
+        plt.scatter(x[self.start], y[self.start])
         data[0:N, 0] = x[self.start-N-D:self.start-D]
         data[0:N, 1] = y[self.start-N-D:self.start-D]
         data[N:, 0] = x[self.stop+D:self.stop+N+D]
         data[N:, 1] = y[self.stop+D:self.stop+N+D]
+        plt.scatter(data[:, 0], data[:, 1], color="green")
 
         model, inliers = ransac(data, LineModelND,
-                          min_samples=12, residual_threshold=0.05)
+                                min_samples=8, residual_threshold=0.05)
+        return model, inliers
 
-        # print(f"inliers: {np.sum(inliers)}")
-        # xl = np.linspace(x[self.start], x[self.stop], num=2)
-        # yl = model.predict_y(xl)
-        # plt.plot(xl, yl)
-        # plt.scatter(data[inliers, 0], data[inliers, 1], color="black")
+    def find_post(self, line: LineParams, hay, x, y) -> int:
+        start = Point(x[self.start], y[self.start])
+        start = line.closest_on(start)
 
-        return model
+        dist_l = [line.distance_to(Point(x[i], y[i])) for i in hay]
+        dist_p = [np.linalg.norm(start - Point(x[i], y[i])) for i in hay]
+        dist_l /= np.max(dist_l)  # normalize
+        dist_p /= np.max(dist_p)
+        score = dist_p + dist_l
 
-    def to_door(self, x: np.ndarray, y: np.ndarray) -> Door:
-        # fit a line through the gap
-        model = self.fit(x, y)
-        # correct the start and stop doorposts using
-        # the model
-        def point(i: int): return Point(x[i], y[i])
-        start = closest_on_door(model, point(self.start))
-        end = closest_on_door(model, point(self.stop))
+        return hay[0]+np.argmin(score)
 
-        return Door(10, start, end)
+    def to_door(self, x: np.ndarray, y: np.ndarray, ranges) -> Optional[Door]:
+        N = self.N
 
-    def to_xy_idx(self, median: np.ndarray, ranges: np.ndarray, x, y):
-        # find jump in data, doorpost is there
-        dist = ranges[self.start] - ranges[self.start-6:self.start+6]
-        self.start -= np.argmax(dist)
+        model, inliers = self.fit(x, y)
+        if np.sum(inliers) < self.N:
+            return None
 
-        dist = ranges[self.stop] - ranges[self.stop-6:self.stop+6]
-        self.stop += np.argmax(dist)
+        xl = np.linspace(x[self.start], x[self.stop], num=2)
+        yl = model.predict_y(xl)
+        plt.plot(xl, yl)
 
+        # walk along door to the center to find the best estimate door posts
+        start, stop = None, None
+        line = LineParams(model)
+        hay = range(self.start-N, self.start)
+        i = self.find_post(line, hay, x, y)
+        start = Point(x[i], y[i])
 
-def closest_on_door(model: LineModelND, point: Point) -> Point:
-    (origin, direction) = model.params
-    normal = (direction[1], -direction[0])
-    a = normal[0]
-    b = normal[1]
-    c = -1*(a*origin[0] + b*origin[1])
+        hay = range(self.stop, self.stop+N)
+        i = self.find_post(line, hay, x, y)
+        stop = Point(x[i], y[i])
 
-    # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_an_equation
-    x = (b*(b*point.x-a*point.y) - a*c)/(a*a+b*b)
-    y = (a*(-b*point.x+a*point.y) - b*c)/(a*a+b*b)
-
-    return Point(x, y)
+        if start is None or stop is None:
+            return None
+        return Door(10, start, stop)
 
 
 def add_gap(median, i: int, start_dist: float, gaps: List[Gap]):
@@ -120,17 +139,22 @@ def find(x: np.ndarray, y: np.ndarray,
     doors = []
     for gap in gaps:
         # convert find x, y index closest to median
-        xp = [x[gap.start], x[gap.stop]]
-        yp = [y[gap.start], y[gap.stop]]
-        plt.scatter(xp, yp, color="red", marker="o", linewidths=4)
+        if __name__ == "__main__":
+            xp = [x[gap.start], x[gap.stop]]
+            yp = [y[gap.start], y[gap.stop]]
+            plt.scatter(xp, yp, color="red", marker="o", linewidths=4)
 
-        gap.to_xy_idx(median, ranges, x, y)
-        xp = [x[gap.start], x[gap.stop]]
-        yp = [y[gap.start], y[gap.stop]]
-        plt.scatter(xp, yp, color="purple", marker="o", linewidths=4)
+        door = gap.to_door(x, y, ranges)
+        if door is None:
+            continue
 
-        if gap.width_ok(x, y):
-            doors.append(gap.to_door(x, y))
+        if __name__ == "__main__":
+            xp = [door.right.x, door.left.x]
+            yp = [door.right.y, door.left.y]
+            plt.scatter(xp, yp, color="purple", marker="o", linewidths=4)
+
+        if 0.2 > door.width() > 2:
+            doors.append(door)
 
     update_plot(x, y, median, doors)
     return doors
@@ -139,17 +163,18 @@ def find(x: np.ndarray, y: np.ndarray,
 def update_plot(x, y, median, doors):
     if PLOT:
         line_lidar.set_data(x, y)
-        ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
+        # ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
+        ANGLES = np.loadtxt("angles.txt") / 180*np.pi
         SIN = np.sin(ANGLES)
         COS = np.cos(ANGLES)
         x = -1*SIN*median
         y = COS*median
         # for i, xy in enumerate(zip(x, y)):
-        #     plt.annotate(i, xy)
+            # plt.annotate(i, xy)
         # line_median.set_data(x, y)
 
-        plt.xlim(-10, 10)
-        plt.ylim(-10, 10)
+        # plt.xlim(-10, 10)
+        # plt.ylim(-10, 10)
 
         if len(doors) > 0:
             x = [door.center().x for door in doors]
@@ -162,7 +187,7 @@ def update_plot(x, y, median, doors):
             ax.draw_artist(line_waypoints)
         ax.draw_artist(line_lidar)
         ax.draw_artist(line_median)
-        plt.pause(0.001)
+        # plt.pause(0.001)
 
 
 if __name__ == "__main__":
@@ -171,4 +196,6 @@ if __name__ == "__main__":
     x, y = data[0], data[1]
 
     find(x, y, ranges)
+    plt.xlim(-1, 2)
+    plt.ylim(-0.5, 3.0)
     plt.show()

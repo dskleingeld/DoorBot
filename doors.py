@@ -12,6 +12,7 @@ class Point:
         return np.linalg.norm([self.x, self.y])
 
     def angle(self) -> float:
+        # angle in degrees
         radians = np.arctan(self.x/self.y)
         return 180/math.pi * radians
 
@@ -27,6 +28,10 @@ class Door:
     base_score: float
     left: Point
     right: Point
+
+    def width(self) -> bool:
+        width = np.linalg.norm(self.left.np()-self.right.np())
+        return width
 
     def center(self) -> Point:
         xlen = self.left.x - self.right.x
@@ -51,9 +56,14 @@ class Door:
         a2 = np.zeros((2)) - self.center().np()
         v2 = a2 - (a2@v1)/(v1@v1) * v1  # gram smith
 
-        pos = self.center().np() + v2 * 1
+        pos = self.center().np() + v2 * 0.4
         pos = Point(pos[0], pos[1])
         return pos
 
     def score(self) -> float:
+        # closer doors are better
+        score = self.base_score - self.distance()
+        # do not turn back and go through door from
+        # whence the bot came
+        score -= abs(self.center().angle()) / 10
         return self.base_score - self.distance()
