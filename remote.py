@@ -3,6 +3,7 @@ import termios
 import sys
 import tty
 from threading import Thread
+from actions import Action
 
 
 class Control:
@@ -18,23 +19,22 @@ class Control:
             if self.last == "q":
                 sys.exit("q pressed during remote")
 
-    def apply(self, agent) -> Optional[str]:
+    def apply(self, agent) -> Action:
         c = self.last
         if c == "w":  # forward
-            self.forward = 0.15
-            agent.change_velocity([self.forward, self.forward], target=None)
+            return Action.Forward
         elif c == "r":  # back
-            self.forward = 0.15
-            agent.change_velocity([self.forward, self.forward], target=None)
+            return Action.Backward
         elif c == "s":  # left
-            agent.change_velocity([0.1, -0.1], target=None)
+            return Action.Left
         elif c == "a":  # right
-            agent.change_velocity([-0.1, 0.1], target=None)
+            return Action.Right
         elif c == "q":
             sys.exit("q pressed during remote")
+        elif c == "p":
+            return Action.Save
         else:
-            return c
-        return None
+            return Action.Stay
 
 
 def get_char():

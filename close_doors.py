@@ -65,6 +65,7 @@ class Gap:
         data = np.zeros((2*N, 2))
 
         plt.scatter(x[self.start], y[self.start])
+        print(f"self.start: {self.start}")
         data[0:N, 0] = x[self.start-N-D:self.start-D]
         data[0:N, 1] = y[self.start-N-D:self.start-D]
         data[N:, 0] = x[self.stop+D:self.stop+N+D]
@@ -111,7 +112,8 @@ class Gap:
 
         if start is None or stop is None:
             return None
-        return Door(10, start, stop)
+        score = 10+sum(inliers)/N
+        return Door(score, start, stop)
 
 
 def add_gap(median, i: int, start_dist: float, gaps: List[Gap]):
@@ -191,8 +193,8 @@ def update_plot(x, y, median, doors):
 
 
 if __name__ == "__main__":
-    ranges = np.loadtxt("ranges.txt")
-    data = np.loadtxt("data.txt")
+    ranges = np.loadtxt("ranges2.txt")
+    data = np.loadtxt("data2.txt")
     x, y = data[0], data[1]
 
     find(x, y, ranges)

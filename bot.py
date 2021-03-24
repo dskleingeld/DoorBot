@@ -8,6 +8,7 @@ from analysis import find_doors, passing_door
 import remote
 from plot import Plot, report_status
 from actions import Action, rot_away, rot_towards
+from doors import DoorHistory
 
 
 # ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
@@ -37,21 +38,22 @@ class BotState(enum.Enum):
 
 class State:
     current: BotState = BotState.NoDoor
+    doors: DoorHistory = DoorHistory()
     plot: Plot = Plot()
-    control = remote.Control()
+    # control = remote.Control()
 
 
 def handle_tracking(state: State, data, ranges) -> Action:
-    doors = find_doors(data, ranges)
-    if len(doors) == 0:
-        logger.critical("lost door, dumping data")
-        np.savetxt("data.txt", data)
-        np.savetxt("ranges.txt", ranges)
-        sys.exit()
-        state.current = BotState.NoDoor
-        return Action.Forward
+    door = state.doors.best_guss()
 
-    door = doors[0]
+    if door is None:
+        logger.critical("lost door, dumping data")
+        np.savetxt("data2.txt", data)
+        np.savetxt("ranges2.txt", ranges)
+        # sys.exit()
+        state.current = BotState.NoDoor
+        return Action.Right
+
     if abs(door.angle_on()) < 2:
         logger.debug(f"angle on door: {door.angle_on()}")
         if abs(door.center().angle()) < 3:
@@ -69,24 +71,28 @@ def handle_tracking(state: State, data, ranges) -> Action:
 
 
 def brain(state: State, data, ranges) -> Action:
+    doors = find_doors(data, ranges)
+    state.doors.update(doors)
+
     if state.current == BotState.NoDoor:
-        doors = find_doors(data, ranges)
         if len(doors) > 0:
             logger.info("tracking door")
             state.current = BotState.TrackingDoor
+        return Action.Right
     elif state.current == BotState.TrackingDoor:
         return handle_tracking(state, data, ranges)
     elif state.current == BotState.AlignedOnDoor:
         if passing_door(data, ranges):
             logger.info("passing door")
             state.current = BotState.PassingDoor
+            return Action.Forward
     elif state.current == BotState.PassingDoor:
         if not passing_door(data, ranges):
             logger.info("passed door")
             state.current = BotState.NoDoor
+            return Action.Forward
     else:
-        logger.warning(f"INVALID STATE: {state.current}")
-    return Action.Forward
+        sys.exit(f"INVALID STATE: {state.current}")
 
 
 def loop(agent: Pioneer, state: State):
@@ -94,15 +100,17 @@ def loop(agent: Pioneer, state: State):
     ranges = np.array(ranges)
     data = convert(ranges)
 
-    c = state.control.apply(agent)
-    if c == "p":
-        np.savetxt("data.txt", data)
-        np.savetxt("ranges.txt", ranges)
-        logger.info("stored current ranges and data")
+    # action = state.control.apply(agent)
+    # if action == Action.Save:
+    #     np.savetxt("data.txt", data)
+    #     np.savetxt("ranges.txt", ranges)
+    #     logger.info("stored current ranges and data")
 
     action = brain(state, data, ranges)
+    print(action)
 
     doors = find_doors(data, ranges)
     state.plot.update(doors, *data, action)
     report_status(doors)
+
     action.perform(agent)
