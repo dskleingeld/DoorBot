@@ -4,6 +4,7 @@
 from __future__ import print_function
 from src.env import VrepEnvironment
 from src.agents import Pioneer
+from src.disp import Display
 import settings
 import time
 import bot
@@ -56,6 +57,7 @@ if __name__ == "__main__":
     environment = VrepEnvironment(settings.SCENES + '/room_static.ttt')
     environment.connect()        # Connect python to the simulator's remote API
     agent = Pioneer(environment)
+    # display = Display(agent, False)
 
     print('\nDemonstration of Simultaneous Localization and Mapping using '
           'CoppeliaSim robot simulation software. \nPress "CTRL+C" to exit.\n')

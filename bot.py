@@ -1,116 +1,129 @@
 import sys
 from src.agents import Pioneer
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from loguru import logger
 import enum
 import numpy as np
-from analysis import find_doors, passing_door
-import remote
 from plot import Plot, report_status
 from actions import Action, rot_away, rot_towards
-from doors import DoorHistory
 
 
-# ANGLES = np.linspace(-.75*np.pi, .75*np.pi, num=270)
-# Future work calibrate automagically using the back wall and
-# a slow turn probably can use a hough transform or RANSAC there
 ANGLES = np.loadtxt("angles.txt") / 180*np.pi
 SIN = np.sin(ANGLES)
 COS = np.cos(ANGLES)
 
 
-def convert(data: List[float]) -> Tuple[np.ndarray, np.ndarray]:
-    ranges = np.array(data)
-    ranges[90+44] = (ranges[90+43] + ranges[90+45])/2
-    x = -1*ranges*SIN
-    y = ranges*COS
-
-    data = np.zeros((2, 270))
-    return x, y
+def arg_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
 
 
-class BotState(enum.Enum):
-    NoDoor = enum.auto()
-    TrackingDoor = enum.auto()
-    AlignedOnDoor = enum.auto()
-    PassingDoor = enum.auto()
+class Anchor:
+    """ finds closest point on the right side of the bot prefering
+    points closer to the front"""
+
+    def __init__(self, ranges: np.ndarray, angles: np.ndarray, prev):
+        right = ranges[25:165].copy()  # dont even look to the left or back
+        angles = angles[25:165]
+        # slightly prefer frontal angles
+        hint = abs(angles)
+        hint = hint/max(hint)
+        if prev is None:  # escpecially at the beginning
+            right *= 1+0.5*hint
+        else:
+            right *= 1+0.2*hint
+
+        # prefer a consistant choice
+        if prev is not None:
+            start = arg_nearest(angles, prev.angle-8)
+            stop = arg_nearest(angles, prev.angle+8)
+            right[start:stop] *= 0.92
+
+        self.idx = np.argmin(right)
+        self.angle = angles[self.idx]
+        self.range = right[self.idx]
+        self.idx += 25
+
+    def __str__(self):
+        return f"(range: {self.range:.2f}, angle: {self.angle:.2f})"
 
 
 class State:
-    current: BotState = BotState.NoDoor
-    doors: DoorHistory = DoorHistory()
+    prev_pivot: Optional[Anchor] = None
+    move_to = True
     plot: Plot = Plot()
-    # control = remote.Control()
+    ranges: np.ndarray = np.zeros((3, 270))
 
 
-def handle_tracking(state: State, data, ranges) -> Action:
-    door = state.doors.best_guss()
+def move_along(closest: Anchor, adjust_left=False,
+               adjust_right=False) -> Action:
+    OPTIMAL_RANGE = 0.4
+    MARGIN = 0.1
+    MARGIN = 8
+    target = -90
+    if adjust_left:
+        target += 5
+    elif adjust_right:
+        target -= 5
 
-    if door is None:
-        logger.critical("lost door, dumping data")
-        np.savetxt("data2.txt", data)
-        np.savetxt("ranges2.txt", ranges)
-        # sys.exit()
-        state.current = BotState.NoDoor
+    if closest.angle > target+MARGIN:
+        # pointing to far right
+        print(f"move_along, rotating away: {closest}", end="\r")
+        return Action.Left
+    elif closest.angle < target-MARGIN:
+        # pointing to far left
+        print(f"move_along, rotating towards: {closest}", end="\r")
         return Action.Right
-
-    if abs(door.angle_on()) < 2:
-        logger.debug(f"angle on door: {door.angle_on()}")
-        if abs(door.center().angle()) < 3:
-            logger.debug(f"driving towards door {door.center().angle()}")
-            return Action.Forward
-        else:
-            logger.debug(f"turning towards door {door.center().angle()}")
-            return rot_towards(door.center().angle())
-    elif abs(door.waypoint().angle()) < 10:
-        logger.debug(f"driving towards waypoint {door.waypoint().angle()}")
+    else:
+        # pointing perfectly forward
+        print(f"move_along, moving forward: {closest}", end="\r")
         return Action.Forward
+
+
+def move_to(closest: Anchor) -> Action:
+    MARGIN = 10  # degrees
+    angle = closest.angle
+    if abs(angle) > MARGIN:
+        print(f"move_to, rotating: {closest}", end="\r")
+        return rot_towards(closest.angle)
     else:
-        logger.debug(f"turning towards waypoint {door.waypoint().angle()}")
-        return rot_towards(door.waypoint().angle())
+        print(f"move_to, forward: {closest}", end="\r")
+        return Action.Forward
 
 
-def brain(state: State, data, ranges) -> Action:
-    doors = find_doors(data, ranges)
-    state.doors.update(doors)
+def brain(closest: Anchor, state: State) -> Action:
+    OPTIMAL_RANGE = 0.4
+    MARGIN = 0.1
 
-    if state.current == BotState.NoDoor:
-        if len(doors) > 0:
-            logger.info("tracking door")
-            state.current = BotState.TrackingDoor
-        return Action.Right
-    elif state.current == BotState.TrackingDoor:
-        return handle_tracking(state, data, ranges)
-    elif state.current == BotState.AlignedOnDoor:
-        if passing_door(data, ranges):
-            logger.info("passing door")
-            state.current = BotState.PassingDoor
-            return Action.Forward
-    elif state.current == BotState.PassingDoor:
-        if not passing_door(data, ranges):
-            logger.info("passed door")
-            state.current = BotState.NoDoor
-            return Action.Forward
-    else:
-        sys.exit(f"INVALID STATE: {state.current}")
+    if state.move_to:
+        if closest.range > OPTIMAL_RANGE:
+            return move_to(closest)
+        else:
+            state.move_to = False
+            print("stopping init")
+            return move_to(closest)
+
+    if closest.range > OPTIMAL_RANGE + MARGIN:
+        return move_along(closest, adjust_right=True)
+    elif closest.range < OPTIMAL_RANGE - MARGIN:
+        return move_along(closest, adjust_left=True)
+    else:  # thus OPITMAL_RANGE - MARGIN > closest.range < OPTIMAL_RANGE:
+        return move_along(closest)
 
 
 def loop(agent: Pioneer, state: State):
+    angles = np.loadtxt("angles.txt")
     ranges = agent.read_lidars()
     ranges = np.array(ranges)
-    data = convert(ranges)
+    ranges[134] = (ranges[133] + ranges[135])/2
 
-    # action = state.control.apply(agent)
-    # if action == Action.Save:
-    #     np.savetxt("data.txt", data)
-    #     np.savetxt("ranges.txt", ranges)
-    #     logger.info("stored current ranges and data")
+    pivot = Anchor(ranges, angles, state.prev_pivot)
+    state.prev_pivot = pivot
 
-    action = brain(state, data, ranges)
-    print(action)
-
-    doors = find_doors(data, ranges)
-    state.plot.update(doors, *data, action)
-    report_status(doors)
-
+    action = brain(pivot, state)
     action.perform(agent)
+
+    x = -1*ranges*SIN
+    y = ranges*COS
+    state.plot.update(x, y, pivot.idx, action)

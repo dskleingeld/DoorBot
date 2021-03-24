@@ -32,50 +32,34 @@ class Plot:
                                       gridspec_kw={'height_ratios': [2, 1]})
         self.lidar, = ax.plot([], [], linestyle='None',
                               marker="o", color="blue", alpha=0.2)
-        self.chosen_door, = ax.plot([], [], linestyle='None',
-                                    marker="o", color="green", markersize=10)
-        self.doors, = ax.plot([], [], linestyle='None', marker="x",
-                              color="green", markersize=10)
-        self.door_wp, = ax.plot([], [], linestyle='None', marker="o",
-                                color="purple", markersize=10)
+        self.closest, = ax.plot([], [], linestyle='None',
+                                marker="o", color="red", alpha=1)
         self.controls, = ax2.plot([])
         self.control_data = deque(maxlen=500)
         self.fig, self.ax, self.ax2 = fig, ax, ax2
         self.show()
 
     def show(self):
-        self.ax.scatter((0,), (0,), color="red")
+        self.ax.scatter((0,), (0,), color="black", linewidth=6)
         self.ax.set_xlim(-8, 8)
         self.ax.set_ylim(-2, 8)
         self.ax2.set_xlim(0, 500)
         self.ax2.set_ylim(-2.2, 1.2)
         self.fig.canvas.draw()
-        # self.bg = self.fig.canvas.copy_from_bbox(self.ax.bbox)
         plt.show(block=False)
 
     def redraw(self):
-        # self.fig.canvas.restore_region(self.bg)
         self.ax.draw_artist(self.lidar)
-        self.ax.draw_artist(self.doors)
-        self.ax.draw_artist(self.chosen_door)
-        self.ax.draw_artist(self.door_wp)
+        self.ax.draw_artist(self.closest)
         self.ax.draw_artist(self.controls)
-        # self.fig.canvas.blit(self.ax.bbox)
-        # self.fig.canvas.flush_events()
         plt.pause(0.01)
 
-    def update(self, doors: List[Door], x: np.ndarray,
-               y: np.ndarray, action: Action):
+    def update(self, x: np.ndarray,
+               y: np.ndarray, idx: int, action: Action):
         self.lidar.set_data(x, y)
+        self.closest.set_data(x[idx], y[idx])
         self.control_data.append(action.value)
         x = range(len(self.control_data))
         y = list(self.control_data)
         self.controls.set_data(x, y)
-        x = list(map(lambda d: d.center().x, doors))
-        y = list(map(lambda d: d.center().y, doors))
-        self.doors.set_data(x, y)
-        self.chosen_door.set_data((x[:1],), (y[:1],))
-        x = list(map(lambda d: d.waypoint().x, doors))
-        y = list(map(lambda d: d.waypoint().y, doors))
-        self.door_wp.set_data((x[:1],), (y[:1],))
         self.redraw()
