@@ -1,11 +1,9 @@
-import sys
 from src.agents import Pioneer
-from typing import List, Tuple, Optional
+from typing import List, Optional
 from loguru import logger
-import enum
 import numpy as np
-from plot import Plot, report_status
-from actions import Action, rot_away, rot_towards
+from plot import Plot
+from actions import Action, rot_towards, rot_towards_moving
 
 
 ANGLES = np.loadtxt("angles.txt") / 180*np.pi
@@ -29,16 +27,20 @@ class Anchor:
         # slightly prefer frontal angles
         hint = abs(angles)
         hint = hint/max(hint)
+
+        min_d = min(right)
         if prev is None:  # escpecially at the beginning
+            right *= 1+0.8*hint
+        elif min_d < 0.5:  # and at close ranges
             right *= 1+0.5*hint
         else:
-            right *= 1+0.2*hint
+            right *= 1+0.5*hint
 
         # prefer a consistant choice
         if prev is not None:
             start = arg_nearest(angles, prev.angle-8)
             stop = arg_nearest(angles, prev.angle+8)
-            right[start:stop] *= 0.92
+            right[start:stop] *= 0.90
 
         self.idx = np.argmin(right)
         self.angle = angles[self.idx]
@@ -58,42 +60,50 @@ class State:
 
 def move_along(closest: Anchor, adjust_left=False,
                adjust_right=False) -> Action:
-    OPTIMAL_RANGE = 0.4
-    MARGIN = 0.1
-    MARGIN = 8
+    MARGIN = 5
     target = -90
     if adjust_left:
-        target += 5
+        target += 10
     elif adjust_right:
-        target -= 5
+        target -= 10
 
-    if closest.angle > target+MARGIN:
-        # pointing to far right
-        print(f"move_along, rotating away: {closest}", end="\r")
-        return Action.Left
-    elif closest.angle < target-MARGIN:
+    rot_spd = min(abs(closest.angle - target)*0.8, 0.15)
+    if closest.angle < target-MARGIN:
         # pointing to far left
-        print(f"move_along, rotating towards: {closest}", end="\r")
-        return Action.Right
+        print(f"move_along, rotating towards: {target}, current: {closest}",
+              end="\r")
+        return Action.right(rot_spd)
+        # return Action.forward_right(0.4, 0.1)
+    elif closest.angle > target+MARGIN:
+        # pointing to far right
+        print(
+            f"move_along, rotating away: target: {target}, current: {closest}",
+            end="\r")
+        return Action.left(rot_spd)
+        # return rot_towards(-1*target)
     else:
         # pointing perfectly forward
         print(f"move_along, moving forward: {closest}", end="\r")
-        return Action.Forward
+        return Action.forward(0.5)
 
 
 def move_to(closest: Anchor) -> Action:
     MARGIN = 10  # degrees
     angle = closest.angle
+    speed = max(closest.range*2, 0.15)
     if abs(angle) > MARGIN:
         print(f"move_to, rotating: {closest}", end="\r")
         return rot_towards(closest.angle)
+    if abs(angle) > MARGIN/2:
+        print(f"move_to, forward rotate: {closest}", end="\r")
+        return rot_towards_moving(closest.angle, speed)
     else:
         print(f"move_to, forward: {closest}", end="\r")
-        return Action.Forward
+        return Action.forward(speed)
 
 
 def brain(closest: Anchor, state: State) -> Action:
-    OPTIMAL_RANGE = 0.4
+    OPTIMAL_RANGE = 0.40
     MARGIN = 0.1
 
     if state.move_to:
@@ -102,11 +112,15 @@ def brain(closest: Anchor, state: State) -> Action:
         else:
             state.move_to = False
             print("stopping init")
-            return move_to(closest)
+            return move_along(closest)
 
-    if closest.range > OPTIMAL_RANGE + MARGIN:
+    if closest.range > OPTIMAL_RANGE + 2*MARGIN:
+        state.move_to = True
+        return move_to(closest)
+    elif closest.range > OPTIMAL_RANGE + MARGIN/2:
         return move_along(closest, adjust_right=True)
-    elif closest.range < OPTIMAL_RANGE - MARGIN:
+
+    elif closest.range < OPTIMAL_RANGE - MARGIN/2:
         return move_along(closest, adjust_left=True)
     else:  # thus OPITMAL_RANGE - MARGIN > closest.range < OPTIMAL_RANGE:
         return move_along(closest)

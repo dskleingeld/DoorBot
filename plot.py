@@ -58,7 +58,7 @@ class Plot:
                y: np.ndarray, idx: int, action: Action):
         self.lidar.set_data(x, y)
         self.closest.set_data(x[idx], y[idx])
-        self.control_data.append(action.value)
+        self.control_data.append(action.plot_y())
         x = range(len(self.control_data))
         y = list(self.control_data)
         self.controls.set_data(x, y)

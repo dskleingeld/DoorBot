@@ -56,6 +56,8 @@ if __name__ == "__main__":
     # Open the file containing our scene (robot and its environment)
     environment = VrepEnvironment(settings.SCENES + '/room_static.ttt')
     environment.connect()        # Connect python to the simulator's remote API
+    # environment.load_scene(settings.SCENES + "/room2.ttt")
+    environment.load_scene(settings.SCENES + "/room_static.ttt")
     agent = Pioneer(environment)
     # display = Display(agent, False)
 
