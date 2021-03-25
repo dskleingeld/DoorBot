@@ -20,10 +20,12 @@ def arg_nearest(array, value):
 class Anchor:
     """ finds closest point on the right side of the bot prefering
     points closer to the front"""
+    SKIP = 38
 
     def __init__(self, ranges: np.ndarray, angles: np.ndarray, prev):
-        right = ranges[25:165].copy()  # dont even look to the left or back
-        angles = angles[25:165]
+        # dont even look to the left or back
+        right = ranges[self.SKIP:165].copy()
+        angles = angles[self.SKIP:165]
         # slightly prefer frontal angles
         hint = abs(angles)
         hint = hint/max(hint)
@@ -45,7 +47,7 @@ class Anchor:
         self.idx = np.argmin(right)
         self.angle = angles[self.idx]
         self.range = right[self.idx]
-        self.idx += 25
+        self.idx += self.SKIP
 
     def __str__(self):
         return f"(range: {self.range:.2f}, angle: {self.angle:.2f})"
@@ -60,24 +62,25 @@ class State:
 
 def move_along(closest: Anchor, adjust_left=False,
                adjust_right=False) -> Action:
-    MARGIN = 5
-    target = -90
+    MARGIN = 5  # lower margin and the lidar location
+    # changing from rotation will cause an endless wobble
+    target = -92  # as 90 != 90 it seems
     if adjust_left:
         target += 10
     elif adjust_right:
         target -= 10
 
-    rot_spd = min(abs(closest.angle - target)*0.8, 0.15)
+    rot_spd = max(abs(closest.angle - target)*1/45, 0.05)
     if closest.angle < target-MARGIN:
         # pointing to far left
-        print(f"move_along, rotating towards: {target}, current: {closest}",
+        print(f"move_along, rotating towards: {target}, current: {closest}, spd: {rot_spd}",
               end="\r")
         return Action.right(rot_spd)
         # return Action.forward_right(0.4, 0.1)
     elif closest.angle > target+MARGIN:
         # pointing to far right
         print(
-            f"move_along, rotating away: target: {target}, current: {closest}",
+            f"move_along, rotating away: target: {target}, current: {closest}, spd: {rot_spd}",
             end="\r")
         return Action.left(rot_spd)
         # return rot_towards(-1*target)
@@ -103,8 +106,8 @@ def move_to(closest: Anchor) -> Action:
 
 
 def brain(closest: Anchor, state: State) -> Action:
-    OPTIMAL_RANGE = 0.40
-    MARGIN = 0.1
+    OPTIMAL_RANGE = 0.42
+    MARGIN = 0.07
 
     if state.move_to:
         if closest.range > OPTIMAL_RANGE:

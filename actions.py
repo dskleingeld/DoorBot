@@ -5,6 +5,7 @@ from loguru import logger
 import numpy as np
 from src.agents import Pioneer
 from dataclasses import dataclass
+from random import random
 
 
 class Direction(enum.Enum):
@@ -52,16 +53,17 @@ class Action:
 
     def perform(self, agent: Pioneer):
         v = self.speed
+        v = v+v*0.2*(random()-0.5)
         if self.dir == Direction.Forward:
             agent.change_velocity([v, v])
 
         elif self.dir == Direction.Left:
-            agent.change_velocity([-v, v])
+            agent.change_velocity([-0.9*v, v])
         elif self.dir == Direction.ForwardLeft:
             agent.change_velocity([v*(1-self.deviation), v*(1+self.deviation)])
 
         elif self.dir == Direction.Right:
-            agent.change_velocity([v, -v])
+            agent.change_velocity([v, -0.9*v])
         elif self.dir == Direction.ForwardRight:
             agent.change_velocity([v*(1+self.deviation), v*(1-self.deviation)])
 
