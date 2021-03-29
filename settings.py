@@ -14,7 +14,7 @@ sim_port = 19998
 local_ip = '127.0.0.1'
 
 # Simulation parameters
-simulation_steps = 10_000
+simulation_steps = 20_000
 
 # Agent
 position_history_length = 200  # Length of the deque of position history of the agent

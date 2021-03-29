@@ -30,11 +30,11 @@ class Anchor:
         hint = abs(angles)
         hint = hint/max(hint)
 
-        min_d = min(right)
+        # min_d = min(right)
         if prev is None:  # escpecially at the beginning
             right *= 1+0.8*hint
-        elif min_d < 0.5:  # and at close ranges
-            right *= 1+0.5*hint
+        # elif min_d < 0.5:  # and at close ranges
+        #     right *= 1+0.5*hint
         else:
             right *= 1+0.5*hint
 
@@ -58,6 +58,7 @@ class State:
     move_to = True
     plot: Plot = Plot()
     ranges: np.ndarray = np.zeros((3, 270))
+    correcting: bool = False
 
 
 def move_along(closest: Anchor, adjust_left=False,
@@ -66,24 +67,21 @@ def move_along(closest: Anchor, adjust_left=False,
     # changing from rotation will cause an endless wobble
     target = -92  # as 90 != 90 it seems
     if adjust_left:
-        target += 10
+        target -= 15
     elif adjust_right:
-        target -= 10
+        target += 15
 
-    rot_spd = max(abs(closest.angle - target)*1/45, 0.05)
+    rot_spd = max(abs(closest.angle - target)*1/90, 0.05)
     if closest.angle < target-MARGIN:
         # pointing to far left
-        print(f"move_along, rotating towards: {target}, current: {closest}, spd: {rot_spd}",
-              end="\r")
+        print(f"move_along, rotating towards: {target}, current: {closest}, "
+              f"spd: {rot_spd:.2f}")  # , end="\r")
         return Action.right(rot_spd)
-        # return Action.forward_right(0.4, 0.1)
     elif closest.angle > target+MARGIN:
         # pointing to far right
-        print(
-            f"move_along, rotating away: target: {target}, current: {closest}, spd: {rot_spd}",
-            end="\r")
+        print(f"move_along, rotating away: {target}, current: {closest}, "
+              f"spd: {rot_spd:.2f}")  # , end="\r")
         return Action.left(rot_spd)
-        # return rot_towards(-1*target)
     else:
         # pointing perfectly forward
         print(f"move_along, moving forward: {closest}", end="\r")
@@ -106,8 +104,11 @@ def move_to(closest: Anchor) -> Action:
 
 
 def brain(closest: Anchor, state: State) -> Action:
-    OPTIMAL_RANGE = 0.42
-    MARGIN = 0.07
+    OPTIMAL_RANGE = 0.50
+    if state.correcting:
+        margin = 0.03
+    else:
+        margin = 0.07
 
     if state.move_to:
         if closest.range > OPTIMAL_RANGE:
@@ -117,15 +118,18 @@ def brain(closest: Anchor, state: State) -> Action:
             print("stopping init")
             return move_along(closest)
 
-    if closest.range > OPTIMAL_RANGE + 2*MARGIN:
+    if closest.range > OPTIMAL_RANGE + 2.1*margin:
         state.move_to = True
         return move_to(closest)
-    elif closest.range > OPTIMAL_RANGE + MARGIN/2:
+    elif closest.range > OPTIMAL_RANGE + margin:
+        state.correcting = True
         return move_along(closest, adjust_right=True)
 
-    elif closest.range < OPTIMAL_RANGE - MARGIN/2:
+    elif closest.range < OPTIMAL_RANGE - margin/3:
+        state.correcting = True
         return move_along(closest, adjust_left=True)
     else:  # thus OPITMAL_RANGE - MARGIN > closest.range < OPTIMAL_RANGE:
+        state.correcting = False
         return move_along(closest)
 
 
