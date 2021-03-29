@@ -1,6 +1,5 @@
 from src.agents import Pioneer
 from typing import List, Optional
-from loguru import logger
 import numpy as np
 from plot import Plot
 from actions import Action, rot_towards, rot_towards_moving

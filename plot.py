@@ -4,23 +4,7 @@ import numpy as np
 from typing import List
 import sys
 
-from analysis import Door
 from actions import Action
-
-
-def report_status(doors: List[Door]):
-    # sys.stdout.write('\r')
-    # sys.stdout.flush()
-    if len(doors) > 0:
-        b = doors[0]
-        # sys.stdout.write(
-        print(
-            f"doors: #{len(doors)}, best at [{b.center().x:.2},"
-            f"{b.center().y:.2}] {b.center().angle():4.1f}° "
-            f"score: {b.score():.2}", end="\r")
-    else:
-        print("no doors found", end="\r")
-        # sys.stdout.write("no doors found")
 
 
 class Plot:
