@@ -52,7 +52,7 @@ def handle_tracking(state: State, data, ranges) -> Action:
         np.savetxt("ranges2.txt", ranges)
         # sys.exit()
         state.current = BotState.NoDoor
-        return Action.Right
+        return Action.Left
 
     if abs(door.angle_on()) < 2:
         logger.debug(f"angle on door: {door.angle_on()}")

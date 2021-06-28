@@ -34,6 +34,6 @@ def rot_away(angle: float) -> Action:
 
 def rot_towards(angle: float) -> Action:
     if angle > 0:
-        return Action.Left
-    else:
         return Action.Right
+    else:
+        return Action.Left

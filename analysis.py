@@ -10,9 +10,9 @@ from doors import Door
 
 def find_doors(data: Tuple[np.ndarray, np.ndarray],
                ranges: np.ndarray) -> List[Door]:
-    # doors = far.find(*data, ranges)
-    # doors += (close.find(*data, ranges))
-    doors = close.find(*data, ranges)
+    doors = far.find(*data, ranges)
+    doors += (close.find(*data, ranges))
+    # doors = close.find(*data, ranges)
 
     doors.sort(key=lambda k: k.score())
     return doors
